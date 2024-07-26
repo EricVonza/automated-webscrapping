@@ -1,9 +1,8 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
-import time
 
 def get_basketball_scores():
-    url = "https://1xbet.co.ke/en/live/Basketball/"  # URL for 1xbet live basketball scores
+    url = "https://1xbet.co.ke/en/live/Basketball/"  # URL for 1xbet Kenya live basketball scores
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     }
@@ -24,7 +23,7 @@ def get_basketball_scores():
             away_team = teams[0].text.strip()
             home_score = scores_data[1].text.strip()
             away_score = scores_data[0].text.strip()
-            
+
             # Get current quarter and time
             current_status = quarter_time.text.strip() if quarter_time else "Unknown"
 
@@ -41,9 +40,6 @@ def get_basketball_scores():
     return scores
 
 if __name__ == "__main__":
-    while True:
-        scores = get_basketball_scores()
-        for score in scores:
-            print(f"{score['away_team']} {score['away_score']} - {score['home_team']} {score['home_score']} ({score['status']})")
-        # Wait for 30 minutes (1800 seconds) before scraping again
-        time.sleep(2)
+    scores = get_basketball_scores()
+    for score in scores:
+        print(f"{score['away_team']} {score['away_score']} - {score['home_team']} {score['home_score']} ({score['status']})")
