@@ -12,28 +12,30 @@ if response.status_code == 200:
     # Parse the HTML content
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Find the section that contains the basketball match information
-    # This will depend on the structure of the website, which you need to inspect
-    timeline = soup.find_all('div', class_='c-events__time')
-    live_matches = soup.find_all('span', class_='c-events__teams')
-    
-        
-    def clean_match_details(details):
-        return details.replace('Including Overtime', '').strip()
-    
-    for match in live_matches:
-        match_details = match.get_text(strip=True)
-        clean_details = clean_match_details(match_details)
-    
-    # Loop through each match and extract the current quarter information
-        for time_line in timeline:
+    matches = soup.find_all(class_='c-events-scoreboard__item')  # Replace with actual class
+
+    for match in matches:
         # Find the specific element that contains the current quarter info
         # Example: (adjust based on the actual structure)
-            current_quarter = time_line.find('span', class_='c-events__overtime')
+        teams = match.find(class_='c-events__teams')
         
-        # Check if the current_quarter element exists
-            if current_quarter:
+        if teams:
             # Extract and print the current quarter information
-                print(clean_details + " " + current_quarter.text.strip())
-        #else:
-            #print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
+            
+            all_teams = teams.get_text(strip=True)
+
+        quarter = match.find(class_='c-events__overtime')  # Replace with actual class
+        if quarter:
+            current_quarter = quarter.get_text(strip=True)
+        else:
+            current_quarter = 'N/A'
+
+        if "3 Quarter" == current_quarter:
+
+        # Print the extracted information
+            print(f" Match {all_teams} Current Quarter: {current_quarter} ")
+
+       
+
+        # Print the extracted information
+    

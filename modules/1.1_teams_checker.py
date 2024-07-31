@@ -20,11 +20,9 @@ if response.status_code == 200:
     for match in matches:
         # Find the specific element that contains the current quarter info
         # Example: (adjust based on the actual structure)
-        current_quarter = match.find('span', class_='c-events__teams')
+        teams = match.find('span', class_='c-events__teams')
         
         # Check if the current_quarter element exists
-        if current_quarter:
+        if teams:
             # Extract and print the current quarter information
-            print(current_quarter.text.strip())
-else:
-    print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
+            print(teams.text.strip())
