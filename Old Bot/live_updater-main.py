@@ -11,17 +11,26 @@ def stock_title():
 
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text,"html.parser")
-    divs =  soup.find_all('span' , class_="n")
+    home_away_teams =  soup.find_all(class_="c-events__teams")
+    scores =  soup.find_all(class_="c-events-scoreboard__cell")
 
+    return home_away_teams 
+    
 
-    return divs
-
-divs = stock_title()
-for i, div in enumerate(divs):
-    text = div.get_text(separator=' ', strip=True)
+home_away_teams = stock_title()
+scores = stock_title()
+for t,div in enumerate(home_away_teams):
+    text = div.get_text(separator=' \n     ', strip=True)
     cleaned_text = text.replace('Including Overtime', '').strip()
-    print(f" {i}: {cleaned_text}")
+    print(f" {t}: {cleaned_text}" )
 
+scores = stock_title()
+for s, div in enumerate(scores):
+    text = div.get_text(separator='', strip=True)
+    cleaned_text = text.replace('', '').strip()
+    print(f" {s}")
+
+    #print(f" {t}: {cleaned_text} {s}")
 #while True:
     #new_title = stock_title
     #if new_title != title:
