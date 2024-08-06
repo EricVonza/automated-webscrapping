@@ -30,7 +30,7 @@ if response.status_code == 200:
         else:
             current_quarter = 'N/A'
 
-        if "3 Quarter" == current_quarter:
+        if "2 Quarter" in current_quarter or "3 Quarter" in current_quarter:
 
         # Print the extracted information
             print(f" Match {all_teams} Current Quarter: {current_quarter} ")
