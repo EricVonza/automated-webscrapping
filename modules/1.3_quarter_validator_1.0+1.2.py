@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # URL of the website to scrape
-url = "https://1xbet.co.ke/en/live/basketball"
+url = "https://1xbet.com/en/live/basketball"
 
 # Send a GET request to the website
 response = requests.get(url)

@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # URL of the 1xbet live matches page (update the URL as necessary)
-url = 'https://1xbet.co.ke/live/basketball'
+url = 'https://1xbet.com/live/basketball'
 
 # Fetch the content from the URL
 response = requests.get(url)
