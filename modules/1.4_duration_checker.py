@@ -13,16 +13,19 @@ if response.status_code == 200:
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Find the section that contains the basketball match information
-    # This will depend on the structure of the website, which you need to inspect
     timer = soup.find_all(class_='c-events-scoreboard__subitem')
 
     # Loop through each match and extract the current quarter information
     for duration in timer:
         # Find the specific element that contains the current quarter info
-        # Example: (adjust based on the actual structure)
         current_timer = duration.find(class_='c-events__time')
         
-        # Check if the current_quarter element exists
-        if "2 Quarter 14:" in current_timer or "2 Quarter 15:" in current_timer or "3 Quarter 24:" in current_timer or "3 Quarter 25:" in current_timer:
-            # Extract and print the current quarter information
-            print(current_timer.text.strip())
+        # Check if the element exists
+        if current_timer:
+            # Extract text from the element and check the conditions
+            timer_text = current_timer.text.strip()
+            if "2 Quarter 14:" in timer_text or "2 Quarter 15:" in timer_text or "3 Quarter 24:" in timer_text or "3 Quarter 25:" in timer_text:
+                # Print the current quarter information
+                print(timer_text)
+else:
+    print(f"Failed to retrieve the webpage. Status code: {response.status_code}")

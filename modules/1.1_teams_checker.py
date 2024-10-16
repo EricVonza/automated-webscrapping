@@ -13,16 +13,17 @@ if response.status_code == 200:
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Find the section that contains the basketball match information
-    # This will depend on the structure of the website, which you need to inspect
     matches = soup.find_all(class_='c-events__name')
 
-    # Loop through each match and extract the current quarter information
+    # Loop through each match and extract the current teams information
     for match in matches:
-        # Find the specific element that contains the current quarter info
-        # Example: (adjust based on the actual structure)
+        # Find the specific element that contains the teams info
         teams = match.find('span', class_='c-events__teams')
         
-        # Check if the current_quarter element exists
+        # Check if the teams element exists
         if teams:
-            # Extract and print the current quarter information
-            print(teams.text.strip())
+            # Extract the text and remove "Including Overtime" if present
+            teams_text = teams.text.strip().replace("Including Overtime", "")
+            
+            # Print the cleaned text
+            print(teams_text)

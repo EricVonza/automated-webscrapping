@@ -12,30 +12,33 @@ if response.status_code == 200:
     # Parse the HTML content
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    matches = soup.find_all(class_='c-events-scoreboard__item')  # Replace with actual class
+    # Find the sections that contain the basketball match information
+    matches = soup.find_all(class_='c-events__item')
 
+    # Track previously printed matches to avoid repetition
+    printed_matches = set()
+
+    # Loop through each match and extract the relevant information
     for match in matches:
-        # Find the specific element that contains the current quarter info
-        # Example: (adjust based on the actual structure)
-        teams = match.find(class_='c-events__teams')
-        
-        if teams:
-            # Extract and print the current quarter information
-            
-            all_teams = teams.get_text(strip=True)
+        # Extract team names
+        teams = match.find('span', class_='c-events__teams')
+        teams_text = teams.text.strip().replace("Including Overtime", "") if teams else None
 
-        quarter = match.find(class_='c-events__overtime')  # Replace with actual class
-        if quarter:
-            current_quarter = quarter.get_text(strip=True)
-        else:
-            current_quarter = 'N/A'
+        # Extract current quarter or overtime info
+        current_quarter = match.find('span', class_='c-events__overtime')
+        quarter_text = current_quarter.text.strip() if current_quarter else None
 
-        if "2 Quarter" in current_quarter or "3 Quarter" in current_quarter:
+        # Combine both teams and quarter as a unique match identifier
+        match_identifier = (teams_text, quarter_text)
 
-        # Print the extracted information
-            print(f" Match {all_teams} Current Quarter: {current_quarter} ")
+        # Print only if this match has not been printed before
+        if match_identifier not in printed_matches:
+            printed_matches.add(match_identifier)
 
-       
-
-        # Print the extracted information
-    
+            # Print teams and current quarter (if available)
+            if teams_text:
+                print(f"Teams: {teams_text}")
+            if quarter_text:
+                print(f"Current Quarter: {quarter_text}")
+else:
+    print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
