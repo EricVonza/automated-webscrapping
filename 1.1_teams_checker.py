@@ -1,29 +1,45 @@
 import requests
 from bs4 import BeautifulSoup
 
-# URL of the website to scrape
-url = "https://1xbet.com/en/live/basketball"
+def fetch_basketball_matches(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
+        return response.content
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data: {e}")
+        return None
 
-# Send a GET request to the website
-response = requests.get(url)
-
-# Check if the request was successful
-if response.status_code == 200:
-    # Parse the HTML content
-    soup = BeautifulSoup(response.content, 'html.parser')
-
-    # Find the section that contains the basketball match information
+def parse_matches(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
     matches = soup.find_all(class_='c-events__name')
+    return matches
 
-    # Loop through each match and extract the current teams information
+def extract_teams(matches):
+    teams_list = []
+    game_counter = 1
     for match in matches:
-        # Find the specific element that contains the teams info
         teams = match.find('span', class_='c-events__teams')
-        
-        # Check if the teams element exists
         if teams:
-            # Extract the text and remove "Including Overtime" if present
             teams_text = teams.text.strip().replace("Including Overtime", "")
-            
-            # Print the cleaned text
-            print(teams_text)
+            teams_text = " ".join(teams_text.split())  # Remove extra whitespaces
+            teams_list.append(f"Game {game_counter}:\n{teams_text}\n")
+            game_counter += 1
+    return teams_list
+
+def main():
+    url = "https://1xbet.com/en/live/basketball"
+    html_content = fetch_basketball_matches(url)
+    
+    if html_content:
+        matches = parse_matches(html_content)
+        teams_list = extract_teams(matches)
+        
+        if teams_list:
+            for teams in teams_list:
+                print(teams)
+        else:
+            print("No matches found.")
+
+if __name__ == "__main__":
+    main()
