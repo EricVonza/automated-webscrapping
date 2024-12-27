@@ -16,7 +16,7 @@ def fetch_html(url):
         print(f"Error fetching data: {e}")
         return None
 
-# Extract Basketball Matches (Teams)
+# Parse and Extract Basketball Matches (Teams)
 def extract_matches(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     matches = soup.find_all(class_='c-events__name')
@@ -25,23 +25,22 @@ def extract_matches(html_content):
         teams = match.find('span', class_='c-events__teams')
         if teams:
             teams_text = teams.text.strip().replace("Including Overtime", "")
+            teams_text = " ".join(teams_text.split())
             teams_list.append(f"Game {idx}: {teams_text}")
-        else:
-            teams_list.append(f"Game {idx}: No team info")
     return teams_list
 
-# Extract Scores and Quarters
+# Parse and Extract Scores and Quarters
 def extract_scores_and_quarters(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     target_elements = soup.find_all('div', class_='c-events-scoreboard__line')
     
     games = []
-    for i in range(0, len(target_elements), 2):
+    i = 0
+    while i < len(target_elements):
         try:
             team1_scores = [span.get_text(strip=True) for span in target_elements[i].find_all('span', class_='c-events-scoreboard__cell')]
             team2_scores = [span.get_text(strip=True) for span in target_elements[i + 1].find_all('span', class_='c-events-scoreboard__cell')]
             
-            # Default to 0 if no score
             if not team1_scores:
                 team1_scores = ["0"]
             if not team2_scores:
@@ -57,15 +56,17 @@ def extract_scores_and_quarters(html_content):
             }
 
             games.append((team1, team2))
+            i += 2
         except IndexError:
             games.append((
                 {'total_score': "0", 'quarters': ["No data"]},
                 {'total_score': "0", 'quarters': ["No data"]}
             ))
+            i += 2
 
     return games
 
-# Extract Timer and Quarter Info
+# Parse and Extract Timer Information
 def extract_timer(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     timer_elements = soup.find_all(class_='c-events-scoreboard__subitem')
@@ -80,9 +81,12 @@ def extract_timer(html_content):
         
         timers.append(f"Timer: {timer_text} | Quarter: {quarter_text}")
     
-    return timers or ["Timer: No timer info | Quarter: No quarter info"]
+    if not timers:
+        timers = ["Timer: No timer info | Quarter: No quarter info"]
+    
+    return timers
 
-# Main Function to Merge, Filter (2nd Quarter), and Print Output
+# Main Function to Merge, Filter (2nd Quarter and 1Q > 40), and Print Output
 def main():
     html_content = fetch_html(URL)
     
@@ -91,17 +95,17 @@ def main():
         games = extract_scores_and_quarters(html_content)
         timers = extract_timer(html_content)
 
-        # Ensure all lists align in length
         max_len = max(len(matches), len(games), len(timers))
         matches += ["No match data"] * (max_len - len(matches))
-        games += [({'total_score': "0"}, {'total_score': "0"})] * (max_len - len(games))
+        games += [({}, {})] * (max_len - len(games))
         timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
 
         for match, (team1, team2), timer in zip(matches, games, timers):
-            if "2nd quarter" in timer.lower():
+            first_quarter_total = sum(int(q) for q in team1.get('quarters', ['0'])[0:1] + team2.get('quarters', ['0'])[0:1] if q.isdigit())
+            if "2nd quarter" in timer.lower() and first_quarter_total > 40:
                 print(f"{match} -")
-                print(f"  First Team Total: {team1.get('total_score', '0')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
-                print(f"  Second Team Total: {team2.get('total_score', '0')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
+                print(f"  First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
+                print(f"  Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
                 print(f"  {timer}")
                 print("-" * 40)
 
