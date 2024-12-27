@@ -105,7 +105,7 @@ def send_whatsapp_message(message):
     )
     print(f"Message sent: {msg.sid}")
 
-# Main Function to Merge, Filter (2nd Quarter and 14th or 15th Minute), and Print Output
+# Main Function to Merge, Filter (1Q > 40 pts, 2nd Quarter and 14th or 15th Minute), and Print Output
 def main():
     while True:
         html_content = fetch_html(URL)
@@ -121,14 +121,15 @@ def main():
             timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
 
             for match, (team1, team2), timer in zip(matches, games, timers):
-                if "2nd quarter" in timer.lower() and ("14:5" in timer or "15:0" in timer or "15:1" in timer):
+                first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
+                if first_quarter_sum > 40 and "2nd quarter" in timer.lower() and ("14:5" in timer or "15:0" in timer or "15:1" in timer):
                     print(f"{match} -")
                     print(f"  First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
                     print(f"  Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
                     print(f"  {timer}")
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
                     print(f"  Estimated midpoint pts : {second_quarter_sum}")
-                    print(f"  Estimated 2Q pts are :UN {second_quarter_sum * 2}")
+                    print(f"  Estimated 2Q pts are : {second_quarter_sum * 2}")
                     print("-" * 40)
 
                     message = f"{match} | Midpoint pts: {second_quarter_sum} | 2Q pts: {second_quarter_sum * 2}"
