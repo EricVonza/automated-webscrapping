@@ -9,8 +9,8 @@ HEADERS = {
 }
 
 # Twilio Configuration
-account_sid = 'ACd8936a014ab4a62d75ed47303cabbbb1'
-auth_token = '6db12d4925b2f5b08616e8e9e4f2900f'
+account_sid = 'Cd8936a014ab4a62d75ed47303cabbbb1'
+auth_token = ''
 twilio_client = Client(account_sid, auth_token)
 from_whatsapp_number = 'whatsapp:+14155238886'
 to_whatsapp_number = 'whatsapp:+254732908889'
