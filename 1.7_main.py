@@ -1,28 +1,36 @@
 import requests
 from bs4 import BeautifulSoup
 import time
-from twilio.rest import Client
+import logging
+
+# Set up logging configuration
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level to INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log message format
+    handlers=[
+        logging.FileHandler("basketball_scraper.log"),  # Log to a file
+        logging.StreamHandler()  # Also log to the console
+    ]
+)
+
+logger = logging.getLogger(__name__)  # Create a logger
 
 URL = "https://1xbet.co.ke/live/basketball"
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
 }
 
-# Twilio Configuration
-account_sid = 'ACd8936a014ab4a62d75ed47303cabbbb1'
-auth_token = ''
-twilio_client = Client(account_sid, auth_token)
-from_whatsapp_number = 'whatsapp:+14155238886'
-to_whatsapp_number = 'whatsapp:+254732908889'
+
 
 # Fetch HTML Content
 def fetch_html(url):
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
+        logger.info("Fetched HTML content successfully.")
         return response.content
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
+        logger.error(f"Error fetching data: {e}")
         return None
 
 # Parse and Extract Basketball Matches (Teams)
@@ -95,15 +103,19 @@ def extract_timer(html_content):
     
     return timers
 
-# Send WhatsApp Notification
-def send_whatsapp_message(message):
-    time.sleep(120)  # Delay for 120 seconds before sending the message
-    msg = twilio_client.messages.create(
-        from_=from_whatsapp_number,
-        to=to_whatsapp_number,
-        body=message
-    )
-    print(f"Message sent: {msg.sid}")
+# Send Telegram Message
+def send_telegram_message(message):
+    try:
+        response = requests.post(
+            TELEGRAM_API_URL,
+            data={'chat_id': CHAT_ID, 'text': message}
+        )
+        if response.status_code == 200:
+            logger.info("Telegram message sent successfully.")
+        else:
+            logger.error(f"Failed to send Telegram message: {response.status_code} - {response.text}")
+    except Exception as e:
+        logger.error(f"Error sending Telegram message: {e}")
 
 # Main Function to Merge, Filter (1Q > 40 pts, 2nd Quarter and 14th or 15th Minute), and Print Output
 def main():
@@ -123,19 +135,20 @@ def main():
             for match, (team1, team2), timer in zip(matches, games, timers):
                 first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
                 if first_quarter_sum > 40 and "2nd quarter" in timer.lower() and ("14:5" in timer or "15:0" in timer or "15:1" in timer):
-                    print(f"{match} -")
-                    print(f"  First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
-                    print(f"  Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
-                    print(f"  {timer}")
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
-                    print(f"  Estimated midpoint pts : {second_quarter_sum}")
-                    print(f"  Estimated 2Q pts are : {second_quarter_sum * 2}")
-                    print("-" * 40)
+                    estimated_2q_points = (second_quarter_sum * 2) + 5
+                    if estimated_2q_points < 15:
+                        logger.info(f"{match} - First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
+                        logger.info(f"Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
+                        logger.info(f"{timer}")
+                        logger.info(f"Estimated midpoint pts: {second_quarter_sum}")
+                        logger.info(f"Estimated 2Q pts: {estimated_2q_points}")
+                        logger.info("-" * 40)
 
-                    message = f"{match} | Midpoint pts: {second_quarter_sum} | 2Q pts: {second_quarter_sum * 2}"
-                    send_whatsapp_message(message)
+                        message = f"{match} | Midpoint pts: {second_quarter_sum} | OVER 2Q pts: {estimated_2q_points}"
+                        send_telegram_message(message)
         
-        time.sleep(20)
+        time.sleep(15)
 
 if __name__ == "__main__":
     main()

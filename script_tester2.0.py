@@ -1,14 +1,15 @@
-from twilio.rest import Client
+import http.client
 
-account_sid = 'ACd8936a014ab4a62d75ed47303cabbbb1'
-auth_token = '6db12d4925b2f5b08616e8e9e4f2900f'
-client = Client(account_sid, auth_token)
+conn = http.client.HTTPSConnection("whin2.p.rapidapi.com")
 
-message = client.messages.create(
-  from_='whatsapp:+14155238886',
-  content_sid='HXb5b62575e6e4ff6129ad7c8efe1f983e',
-  content_variables='{"1":"12/1","2":"3pm"}',
-  to='whatsapp:+254732908889'
-)
+headers = {
+    'x-rapidapi-key': "45b5318b2dmshdf9d3bbbac0730ep1cf77cjsn6e900645baa4",
+    'x-rapidapi-host': "whin2.p.rapidapi.com"
+}
 
-print(message.sid)
+conn.request("GET", "/mygroup", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))
