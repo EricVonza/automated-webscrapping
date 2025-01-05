@@ -20,9 +20,7 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# Telegram Configuration
-TELEGRAM_API_URL = "https://api.telegram.org/bot7673072287:AAE8zwUozbG1oNuPC79DSRY94b_OWhh2Wp8/sendMessage"
-CHAT_ID = "-1002170377368"
+
 
 # Fetch HTML Content
 def fetch_html(url):
