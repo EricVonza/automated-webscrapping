@@ -8,7 +8,7 @@ logging.basicConfig(
     level=logging.INFO,  # Set the logging level to INFO
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log message format
     handlers=[
-        logging.FileHandler("basketball_scraper.log"),  # Log to a file
+        #logging.FileHandler("basketball_scraper.log"),  # Log to a file
         logging.StreamHandler()  # Also log to the console
     ]
 )
@@ -134,10 +134,10 @@ def main():
 
             for match, (team1, team2), timer in zip(matches, games, timers):
                 first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
-                if first_quarter_sum > 40 and "2nd quarter" in timer.lower() and ("14:5" in timer or "15:0" in timer or "15:1" in timer):
+                if first_quarter_sum < 36 and "2nd quarter" in timer.lower() and ("12:3" in timer or "12:5" in timer or "13:0" in timer):
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
-                    estimated_2q_points = (second_quarter_sum * 2) + 5
-                    if estimated_2q_points < 15:
+                    estimated_2q_points = second_quarter_sum * 3
+                    if estimated_2q_points < 50 :
                         logger.info(f"{match} - First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
                         logger.info(f"Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
                         logger.info(f"{timer}")
@@ -145,10 +145,11 @@ def main():
                         logger.info(f"Estimated 2Q pts: {estimated_2q_points}")
                         logger.info("-" * 40)
 
-                        message = f"{match} | Midpoint pts: {second_quarter_sum} | OVER 2Q pts: {estimated_2q_points}"
+                        message = f"{match} | Midpoint pts: {second_quarter_sum} | 2Q pts: OV{estimated_2q_points} + 5pts* "
+
                         send_telegram_message(message)
         
-        time.sleep(15)
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()
