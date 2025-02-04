@@ -3,10 +3,13 @@ from bs4 import BeautifulSoup
 import time
 import logging
 
+
+
+
 # Set up logging configuration
 logging.basicConfig(
-    level=logging.INFO,  # Set the logging level to INFO
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log message format
+    #level=logging.INFO,  # Set the logging level to INFO
+    #format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log message format
     handlers=[
         #logging.FileHandler("basketball_scraper.log"),  # Log to a file
         logging.StreamHandler()  # Also log to the console
@@ -15,9 +18,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)  # Create a logger
 
-URL = "https://1xbet.co.ke/live/basketball"
+URL = "https://1xbet.global/en/live/basketball"
+
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0",
+        'Accept-Language': "en-US,en;q=0.5",
+        'Accept-Encoding': "gzip, deflate, br"
 }
 
 
@@ -134,10 +140,10 @@ def main():
 
             for match, (team1, team2), timer in zip(matches, games, timers):
                 first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
-                if first_quarter_sum < 32 and "2nd quarter" in timer.lower() and ("11:5" in timer or "12:0" in timer or "12:1" in timer):
+                if first_quarter_sum < 34 and "2nd quarter" in timer.lower() and ("12:5" in timer or "13:0" in timer or "13:1" in timer):
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
-                    estimated_2q_points = second_quarter_sum * 4.5
-                    if estimated_2q_points < 50 :
+                    estimated_2q_points = second_quarter_sum * 3.5
+                    if estimated_2q_points < 33 :
                         logger.info(f"{match} - First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
                         logger.info(f"Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
                         logger.info(f"{timer}")
