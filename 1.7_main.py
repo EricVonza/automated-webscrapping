@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)  # Create a logger
 URL = "https://1xbet.global/en/live/basketball"
 
 HEADERS = {
-        'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0",
-        'Accept-Language': "en-US,en;q=0.5",
-        'Accept-Encoding': "gzip, deflate, br"
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0'
 }
 
 
