@@ -4,9 +4,6 @@ import time
 import re
 import logging
 
-# Telegram Configuration
-TELEGRAM_API_URL = "https://api.telegram.org/bot7673072287:AAE8zwUozbG1oNuPC79DSRY94b_OWhh2Wp8/sendMessage"
-CHAT_ID = "-1002170377368"
 
 URL = "https://1xbet.global/en/live/basketball"
 HEADERS = {
