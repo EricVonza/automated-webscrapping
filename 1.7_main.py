@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)  # Create a logger
 
 URL = "https://1xbet.co.ke/en/live/basketball"
 
+# Telegram Configuration
+TELEGRAM_API_URL = "https://api.telegram.org/bot7673072287:AAE8zwUozbG1oNuPC79DSRY94b_OWhh2Wp8/sendMessage"
+CHAT_ID = "-1002170377368"
+
 HEADERS = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0'
 }
