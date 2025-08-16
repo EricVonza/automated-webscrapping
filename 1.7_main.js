@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-
+const http = require('http');
 
 const encodedUrl = 'aHR0cHM6Ly9hcGkudGVsZWdyYW0ub3JnL2JvdDc2NzMwNzIyODc6QUFFOHp3VW96Ykcxb051UEM3OURTUl k5NGJfT1doaDJXcDgvc2VuZE1lc3NhZ2U=';
 const encodedRoom = 'LTAwMjE3MDM3NzM2OA==';
@@ -17,7 +17,7 @@ const HEADERS = {
 async function fetchHtml(url) {
     try {
         const response = await axios.get(url, { headers: HEADERS });
-        console.log("Fetched HTML content successfully.");
+        // Removed frequent console log here
         return response.data;
     } catch (e) {
         console.error("Error fetching data:", e.message);
@@ -93,9 +93,16 @@ async function sendPayload(message) {
 
 // Main Logic
 async function main() {
+    let lastAlive = Date.now();
+    let firstRun = true;
     while (true) {
         const html = await fetchHtml(URL);
         if (html) {
+            if (firstRun) {
+                await sendPayload("✅ HTML Fetched successfully and bot is running.");
+                console.log("HTML Fetched successfully and bot is running.");
+                firstRun = false;
+            }
             const matches = extractMatches(html);
             const games = extractScoresAndQuarters(html);
             const timers = extractTimer(html);
@@ -130,8 +137,25 @@ async function main() {
                 }
             }
         }
+
+        // Send alive status every hour
+        if (Date.now() - lastAlive > 60 * 60 * 1000) {
+            await sendPayload("✅ Alive: Bot health status OK.");
+            console.log("Alive: Bot health status OK.");
+            lastAlive = Date.now();
+        }
+
         await new Promise(res => setTimeout(res, 10000));
     }
 }
 
 main();
+
+const server = http.createServer((req, res) => {
+    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.end('Bot is running\n');
+});
+
+server.listen(3000, () => {
+    console.log('Server listening on port 3000');
+});
