@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import logging
+import base64
 
 # ✅ Logging configuration
 logging.basicConfig(
@@ -14,7 +15,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Obfuscated  and room ID
+_encoded_url = b'aHR0cHM6Ly9hcGkudGVsZWdyYW0ub3JnL2JvdDc2NzMwNzIyODc6QUFFOHp3VW96Ykcxb051UEM3OURTUl k5NGJfT1doaDJXcDgvc2VuZE1lc3NhZ2U='
+_encoded_room = b'LTAwMjE3MDM3NzM2OA=='
 
+URL = "https://1xbet.global/en/live/basketball"
+EPL_URL = base64.b64decode(_encoded_url).decode()
+ROOM_ID = base64.b64decode(_encoded_room).decode()
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0'
@@ -99,19 +106,18 @@ def extract_timer(html_content):
 
     return timers
 
-# 📲 Send Telegram Message
-def send_telegram_message(message):
+def send_payload(message):
     try:
         response = requests.post(
-            TELEGRAM_API_URL,
-            data={'chat_id': CHAT_ID, 'text': message}
+            EPL_URL,
+            data={'chat_id': ROOM_ID, 'text': message}
         )
         if response.status_code == 200:
-            logger.info("Telegram message sent successfully.")
+            logger.info("Payload sent successfully.")
         else:
-            logger.error(f"Failed to send Telegram message: {response.status_code} - {response.text}")
+            logger.error(f"Failed to send payload: {response.status_code} - {response.text}")
     except Exception as e:
-        logger.error(f"Error sending Telegram message: {e}")
+        logger.error(f"Error sending payload: {e}")
 
 # 🚀 Main Logic
 def main():
@@ -133,7 +139,7 @@ def main():
                 if first_quarter_sum < 50 and "2nd quarter" in timer.lower() and ("12:5" in timer or "13:0" in timer or "13:1" in timer or "16:5" in timer or "17:" in timer):
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
                     estimated_2q_points = second_quarter_sum * 3.5
-                    if estimated_2q_points < 33:
+                    if estimated_2q_points < 29:
                         logger.info(f"{match} - First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
                         logger.info(f"Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
                         logger.info(f"{timer}")
@@ -142,7 +148,7 @@ def main():
                         logger.info("-" * 40)
 
                         message = f"{match} | 2Q pts: OV{estimated_2q_points} "
-                        send_telegram_message(message)
+                        send_payload(message)
 
         time.sleep(10)
 
