@@ -4,7 +4,7 @@ import time
 import logging
 import base64
 
-# ✅ Logging configuration
+#  Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -27,7 +27,7 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0'
 }
 
-# 🔍 Fetch HTML
+#  Fetch HTML
 def fetch_html(url):
     try:
         response = requests.get(url, headers=HEADERS)
@@ -38,7 +38,7 @@ def fetch_html(url):
         logger.error(f"Error fetching data: {e}")
         return None
 
-# 🏀 Extract Match Info
+#  Extract Match Info
 def extract_matches(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     matches = soup.find_all(class_='c-events__name')
@@ -51,7 +51,7 @@ def extract_matches(html_content):
             teams_list.append(f"Game {idx}: {teams_text}")
     return teams_list
 
-# 📊 Extract Scores and Quarters
+# Extract Scores and Quarters
 def extract_scores_and_quarters(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     target_elements = soup.find_all('div', class_='c-events-scoreboard__line')
@@ -86,7 +86,7 @@ def extract_scores_and_quarters(html_content):
             i += 2
     return games
 
-# ⏱️ Extract Timer Info
+#  Extract Timer Info
 def extract_timer(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     timer_elements = soup.find_all(class_='c-events-scoreboard__subitem')
@@ -119,7 +119,7 @@ def send_payload(message):
     except Exception as e:
         logger.error(f"Error sending payload: {e}")
 
-# 🚀 Main Logic
+#  Main Logic
 def main():
     while True:
         html_content = fetch_html(URL)
@@ -152,6 +152,6 @@ def main():
 
         time.sleep(10)
 
-# 🎬 Script entrypoint
+# Script entrypoint
 if __name__ == "__main__":
     main()

@@ -99,7 +99,7 @@ async function main() {
         const html = await fetchHtml(URL);
         if (html) {
             if (firstRun) {
-                await sendPayload("✅ HTML Fetched successfully and bot is running.");
+                await sendPayload("HTML Fetched successfully and bot is running.");
                 console.log("HTML Fetched successfully and bot is running.");
                 firstRun = false;
             }
@@ -140,7 +140,7 @@ async function main() {
 
         // Send alive status every hour
         if (Date.now() - lastAlive > 60 * 60 * 1000) {
-            await sendPayload("✅ Alive: Bot health status OK.");
+            await sendPayload("Alive: Bot health status OK.");
             console.log("Alive: Bot health status OK.");
             lastAlive = Date.now();
         }
