@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 URL = "https://1xbet.global/en/live/basketball"
+
+# Telegram Configuration
 ROOM_ID = "-1002170377368"
 
 HEADERS = {
@@ -130,11 +132,18 @@ def main():
             games += [({}, {})] * (max_len - len(games))
             timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
 
-            for match, (team1, team2), timer in zip(matches, games, timers):
+            # 🔍 Filter out women’s games
+            filtered_data = [
+                (m, g, t)
+                for m, g, t in zip(matches, games, timers)
+                if "women" not in m.lower()
+            ]
+
+            for match, (team1, team2), timer in filtered_data:
 
                 # ---------------- Existing Rule ---------------- #
                 first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
-                if first_quarter_sum < 50 and "2nd quarter" in timer.lower() and ("12:5" in timer or "13:0" in timer or "13:1" in timer or "16:5" in timer or "17:" in timer):
+                if first_quarter_sum < 50 and "2nd quarter" in timer.lower() and ("12:5" in timer or "13:0" in timer or "13:1" in timer):
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
                     estimated_2q_points = second_quarter_sum * 3.5
                     if estimated_2q_points < 33:
@@ -149,8 +158,7 @@ def main():
                         send_telegram_message(message)
 
                 # ---------------- New Rule ---------------- #
-                # Look for games at 15:0 in 2Q or 35:0 in 4Q
-                if ("2nd quarter" in timer.lower() and "15:0" in timer) or ("4th quarter" in timer.lower() and "35:0" in timer):
+                if ("2nd quarter" in timer.lower() and "14:" in timer) or ("4th quarter" in timer.lower() and "34:" in timer):
                     if "2nd quarter" in timer.lower():
                         q_index = 1  # 2Q = index 1
                     else:
@@ -159,7 +167,8 @@ def main():
                     team1_q_points = int(team1.get('quarters', ['0'])[q_index]) if team1.get('quarters', ['0'])[q_index].isdigit() else 0
                     team2_q_points = int(team2.get('quarters', ['0'])[q_index]) if team2.get('quarters', ['0'])[q_index].isdigit() else 0
 
-                    if team1_q_points < 5 or team2_q_points < 5:
+                    # ✅ Condition: one < 6 AND the other ≤ 9
+                    if (team1_q_points < 6 and team2_q_points <= 9) or (team2_q_points < 6 and team1_q_points <= 9):
                         logger.info(f"{match} | ALERT: {timer} | Quarter {q_index+1} low score detected")
                         logger.info(f"Team1: {team1_q_points}, Team2: {team2_q_points}")
                         message = f"⚠️ {match} | {timer} | Quarter {q_index+1}: Low score alert! T1={team1_q_points}, T2={team2_q_points}"
