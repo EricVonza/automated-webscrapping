@@ -25,6 +25,13 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0'
 }
 
+# -------------------------------------------
+# PER-GAME Low Quarter Alert Tracking
+# -------------------------------------------
+low_quarter_alerts_sent = {}  # key = match name, value = count
+MAX_LOW_QUARTER_ALERTS = 4
+
+
 # 🔍 Fetch HTML
 def fetch_html(url):
     try:
@@ -36,6 +43,7 @@ def fetch_html(url):
         logger.error(f"Error fetching data: {e}")
         return None
 
+
 #  Extract Match Info
 def extract_matches(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -46,8 +54,9 @@ def extract_matches(html_content):
         if teams:
             teams_text = teams.text.strip().replace("Including Overtime", "")
             teams_text = " ".join(teams_text.split())
-            teams_list.append(f"Game {idx}: {teams_text}")
+            teams_list.append(teams_text)
     return teams_list
+
 
 #  Extract Scores and Quarters
 def extract_scores_and_quarters(html_content):
@@ -67,22 +76,23 @@ def extract_scores_and_quarters(html_content):
 
             team1 = {
                 'total_score': team1_scores[0],
-                'quarters': team1_scores[1:] if len(team1_scores) > 1 else ["No data"]
+                'quarters': team1_scores[1:] if len(team1_scores) > 1 else ["0"]
             }
             team2 = {
                 'total_score': team2_scores[0],
-                'quarters': team2_scores[1:] if len(team2_scores) > 1 else ["No data"]
+                'quarters': team2_scores[1:] if len(team2_scores) > 1 else ["0"]
             }
 
             games.append((team1, team2))
             i += 2
         except IndexError:
             games.append((
-                {'total_score': "0", 'quarters': ["No data"]},
-                {'total_score': "0", 'quarters': ["No data"]}
+                {'total_score': "0", 'quarters': ["0"]},
+                {'total_score': "0", 'quarters': ["0"]}
             ))
             i += 2
     return games
+
 
 #  Extract Timer Info
 def extract_timer(html_content):
@@ -97,12 +107,13 @@ def extract_timer(html_content):
         timer_text = time_element.get_text(strip=True) if time_element else "No timer info"
         quarter_text = quarter_element.get_text(strip=True) if quarter_element else "No quarter info"
 
-        timers.append(f"Timer: {timer_text} | Quarter: {quarter_text}")
+        timers.append(f"{timer_text} | {quarter_text}")
 
     if not timers:
-        timers = ["Timer: No timer info | Quarter: No quarter info"]
+        timers = ["No timer info | No quarter info"]
 
     return timers
+
 
 # Send Telegram Message
 def send_telegram_message(message):
@@ -118,6 +129,7 @@ def send_telegram_message(message):
     except Exception as e:
         logger.error(f"Error sending Telegram message: {e}")
 
+
 #  Main Logic
 def main():
     while True:
@@ -129,58 +141,70 @@ def main():
             timers = extract_timer(html_content)
 
             max_len = max(len(matches), len(games), len(timers))
-            matches += ["No match data"] * (max_len - len(matches))
+            matches += ["No match"] * (max_len - len(matches))
             games += [({}, {})] * (max_len - len(games))
-            timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
+            timers += ["No timer info | No quarter info"] * (max_len - len(timers))
 
             # 🔍 Filter out women’s games
-            filtered_data = [
+            filtered = [
                 (m, g, t)
                 for m, g, t in zip(matches, games, timers)
                 if "women" not in m.lower()
             ]
 
-            for match, (team1, team2), timer in filtered_data:
+            for match, (team1, team2), timer in filtered:
 
-                # ---------------- Existing Rule ---------------- #
-                first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
-                if first_quarter_sum < 50 and "2nd quarter" in timer.lower() and ("12:5" in timer or "13:0" in timer or "13:1" in timer):
-                    second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
-                    estimated_2q_points = second_quarter_sum * 3.1
-                    if estimated_2q_points < 33:
-                        message = f"{match} | 2Q pts: OV{estimated_2q_points} "
-                        send_telegram_message(message)
+                # Extract timer/quarter parts
+                timer_lower = timer.lower()
 
-                # ---------------- Low Score + Previous Quarter Rule ---------------- #
-                if ("2nd quarter" in timer.lower() and "13:" in timer) or ("4th quarter" in timer.lower() and "33:" in timer):
-                    if "2nd quarter" in timer.lower():
-                        q_index = 1  # 2Q
-                        prev_index = 0  # Q1
-                    else:
-                        q_index = 3  # 4Q
-                        prev_index = 2  # Q3
+                # -------------------------------------------
+                # PER-GAME LOW QUARTER RULE
+                # -------------------------------------------
+                match_key = match
 
-                    team1_q_points = int(team1.get('quarters', ['0'])[q_index]) if team1.get('quarters', ['0'])[q_index].isdigit() else 0
-                    team2_q_points = int(team2.get('quarters', ['0'])[q_index]) if team2.get('quarters', ['0'])[q_index].isdigit() else 0
+                if match_key not in low_quarter_alerts_sent:
+                    low_quarter_alerts_sent[match_key] = 0
 
-                    # Previous quarter totals
-                    try:
-                        team1_prev = int(team1.get('quarters', ['0'])[prev_index]) if team1.get('quarters', ['0'])[prev_index].isdigit() else 0
-                        team2_prev = int(team2.get('quarters', ['0'])[prev_index]) if team2.get('quarters', ['0'])[prev_index].isdigit() else 0
-                    except IndexError:
-                        team1_prev, team2_prev = 0, 0
+                completed_quarters = []
 
-                    prev_total = team1_prev + team2_prev
+                if "2nd quarter" in timer_lower:
+                    completed_quarters = [0]
+                elif "3rd quarter" in timer_lower:
+                    completed_quarters = [0, 1]
+                elif "4th quarter" in timer_lower:
+                    completed_quarters = [0, 1, 2]
+                elif "overtime" in timer_lower:
+                    completed_quarters = [0, 1, 2, 3]
 
-                    # Rule: low score this quarter AND previous quarter total < 36
-                    if ((team1_q_points < 6 and team2_q_points <= 9) or (team2_q_points < 6 and team1_q_points <= 9)) and prev_total < 36:
-                        message = (
-                            f" {match} | {timer} | Quarter {q_index+1}: Low score alert!\n"
-                            f"T1={team1_q_points}, T2={team2_q_points} | Previous Quarter total={prev_total}"
-                        )
-                        send_telegram_message(message)
+                # Only send if THIS match has not exceeded its limit
+                if low_quarter_alerts_sent[match_key] < MAX_LOW_QUARTER_ALERTS:
+
+                    for q in completed_quarters:
+                        try:
+                            t1_q = int(team1["quarters"][q]) if team1["quarters"][q].isdigit() else 0
+                            t2_q = int(team2["quarters"][q]) if team2["quarters"][q].isdigit() else 0
+                        except:
+                            continue
+
+                        if t1_q < 12 or t2_q < 12:
+                            msg = (
+                                f"⚠️ Low Quarter Alert\n"
+                                f"{match}\n"
+                                f"{timer}\n"
+                                f"Quarter {q+1}: T1={t1_q}, T2={t2_q}"
+                            )
+                            send_telegram_message(msg)
+
+                            low_quarter_alerts_sent[match_key] += 1
+
+                            logger.info(f"{match_key} -> Alert {low_quarter_alerts_sent[match_key]}/4")
+
+                            break
+                else:
+                    logger.info(f"{match_key}: low-quarter limit reached.")
 
         time.sleep(10)
+
 
 # Script entrypoint
 if __name__ == "__main__":
