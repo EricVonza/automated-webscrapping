@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import time
 import logging
 
-# ✅ Logging configuration
+#  Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 URL = "https://1xbet.global/en/live/basketball"
 
 # Telegram Configuration
+T_URL = "https://api.telegram.org/bot7673072287:AAE8zwUozbG1oNuPC79DSRY94b_OWhh2Wp8/sendMessage"
 ROOM_ID = "-1002170377368"
 
 HEADERS = {
@@ -35,7 +36,7 @@ def fetch_html(url):
         logger.error(f"Error fetching data: {e}")
         return None
 
-# 🏀 Extract Match Info
+#  Extract Match Info
 def extract_matches(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     matches = soup.find_all(class_='c-events__name')
@@ -48,7 +49,7 @@ def extract_matches(html_content):
             teams_list.append(f"Game {idx}: {teams_text}")
     return teams_list
 
-# 📊 Extract Scores and Quarters
+#  Extract Scores and Quarters
 def extract_scores_and_quarters(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     target_elements = soup.find_all('div', class_='c-events-scoreboard__line')
@@ -83,7 +84,7 @@ def extract_scores_and_quarters(html_content):
             i += 2
     return games
 
-# ⏱️ Extract Timer Info
+#  Extract Timer Info
 def extract_timer(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     timer_elements = soup.find_all(class_='c-events-scoreboard__subitem')
@@ -103,7 +104,7 @@ def extract_timer(html_content):
 
     return timers
 
-# 📲 Send Telegram Message
+# Send Telegram Message
 def send_telegram_message(message):
     try:
         response = requests.post(
@@ -117,7 +118,7 @@ def send_telegram_message(message):
     except Exception as e:
         logger.error(f"Error sending Telegram message: {e}")
 
-# 🚀 Main Logic
+#  Main Logic
 def main():
     while True:
         html_content = fetch_html(URL)
@@ -145,37 +146,42 @@ def main():
                 first_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit())
                 if first_quarter_sum < 50 and "2nd quarter" in timer.lower() and ("12:5" in timer or "13:0" in timer or "13:1" in timer):
                     second_quarter_sum = sum(int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit())
-                    estimated_2q_points = second_quarter_sum * 3.5
+                    estimated_2q_points = second_quarter_sum * 3.1
                     if estimated_2q_points < 33:
-                        logger.info(f"{match} - First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
-                        logger.info(f"Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
-                        logger.info(f"{timer}")
-                        logger.info(f"Estimated midpoint pts: {second_quarter_sum}")
-                        logger.info(f"Estimated 2Q pts: {estimated_2q_points}")
-                        logger.info("-" * 40)
-
                         message = f"{match} | 2Q pts: OV{estimated_2q_points} "
                         send_telegram_message(message)
 
-                # ---------------- New Rule ---------------- #
-                if ("2nd quarter" in timer.lower() and "14:" in timer) or ("4th quarter" in timer.lower() and "34:" in timer):
+                # ---------------- Low Score + Previous Quarter Rule ---------------- #
+                if ("2nd quarter" in timer.lower() and "13:" in timer) or ("4th quarter" in timer.lower() and "33:" in timer):
                     if "2nd quarter" in timer.lower():
-                        q_index = 1  # 2Q = index 1
+                        q_index = 1  # 2Q
+                        prev_index = 0  # Q1
                     else:
-                        q_index = 3  # 4Q = index 3
+                        q_index = 3  # 4Q
+                        prev_index = 2  # Q3
 
                     team1_q_points = int(team1.get('quarters', ['0'])[q_index]) if team1.get('quarters', ['0'])[q_index].isdigit() else 0
                     team2_q_points = int(team2.get('quarters', ['0'])[q_index]) if team2.get('quarters', ['0'])[q_index].isdigit() else 0
 
-                    # ✅ Condition: one < 6 AND the other ≤ 9
-                    if (team1_q_points < 6 and team2_q_points <= 9) or (team2_q_points < 6 and team1_q_points <= 9):
-                        logger.info(f"{match} | ALERT: {timer} | Quarter {q_index+1} low score detected")
-                        logger.info(f"Team1: {team1_q_points}, Team2: {team2_q_points}")
-                        message = f"⚠️ {match} | {timer} | Quarter {q_index+1}: Low score alert! T1={team1_q_points}, T2={team2_q_points}"
+                    # Previous quarter totals
+                    try:
+                        team1_prev = int(team1.get('quarters', ['0'])[prev_index]) if team1.get('quarters', ['0'])[prev_index].isdigit() else 0
+                        team2_prev = int(team2.get('quarters', ['0'])[prev_index]) if team2.get('quarters', ['0'])[prev_index].isdigit() else 0
+                    except IndexError:
+                        team1_prev, team2_prev = 0, 0
+
+                    prev_total = team1_prev + team2_prev
+
+                    # Rule: low score this quarter AND previous quarter total < 36
+                    if ((team1_q_points < 6 and team2_q_points <= 9) or (team2_q_points < 6 and team1_q_points <= 9)) and prev_total < 36:
+                        message = (
+                            f" {match} | {timer} | Quarter {q_index+1}: Low score alert!\n"
+                            f"T1={team1_q_points}, T2={team2_q_points} | Previous Quarter total={prev_total}"
+                        )
                         send_telegram_message(message)
 
         time.sleep(10)
 
-# 🎬 Script entrypoint
+# Script entrypoint
 if __name__ == "__main__":
     main()
