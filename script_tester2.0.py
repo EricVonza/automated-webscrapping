@@ -7,9 +7,7 @@ import logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()]
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +29,6 @@ HEADERS = {
 low_quarter_alerts_sent = {}  # key = match name, value = count
 MAX_LOW_QUARTER_ALERTS = 4
 
-
 # 🔍 Fetch HTML
 def fetch_html(url):
     try:
@@ -43,20 +40,18 @@ def fetch_html(url):
         logger.error(f"Error fetching data: {e}")
         return None
 
-
 #  Extract Match Info
 def extract_matches(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     matches = soup.find_all(class_='c-events__name')
     teams_list = []
-    for idx, match in enumerate(matches, start=1):
+    for match in matches:
         teams = match.find('span', class_='c-events__teams')
         if teams:
             teams_text = teams.text.strip().replace("Including Overtime", "")
             teams_text = " ".join(teams_text.split())
             teams_list.append(teams_text)
     return teams_list
-
 
 #  Extract Scores and Quarters
 def extract_scores_and_quarters(html_content):
@@ -95,7 +90,6 @@ def extract_scores_and_quarters(html_content):
             i += 2
     return games
 
-
 #  Extract Timer Info
 def extract_timer(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -116,7 +110,6 @@ def extract_timer(html_content):
 
     return timers
 
-
 # Send Telegram Message
 def send_telegram_message(message):
     try:
@@ -131,9 +124,10 @@ def send_telegram_message(message):
     except Exception as e:
         logger.error(f"Error sending Telegram message: {e}")
 
-
-#  Main Logic
+# ---------------- Main Logic (merged) ---------------- #
 def main():
+    last_log_time = 0
+
     while True:
         html_content = fetch_html(URL)
 
@@ -143,11 +137,11 @@ def main():
             timers = extract_timer(html_content)
 
             max_len = max(len(matches), len(games), len(timers))
-            matches += ["No match"] * (max_len - len(matches))
+            matches += ["No match data"] * (max_len - len(matches))
             games += [({}, {})] * (max_len - len(games))
-            timers += ["No timer info | No quarter info"] * (max_len - len(timers))
+            timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
 
-            # 🔍 Filter out women's games
+            # Filter out women's games
             filtered = [
                 (m, g, t)
                 for m, g, t in zip(matches, games, timers)
@@ -156,16 +150,12 @@ def main():
 
             for match, (team1, team2), timer in filtered:
                 timer_lower = timer.lower()
-
                 match_key = match
                 if match_key not in low_quarter_alerts_sent:
                     low_quarter_alerts_sent[match_key] = 0
 
-                # -------------------------------------------
-                # Determine PREVIOUS quarter index
-                # -------------------------------------------
+                # ---------------- PER-GAME LOW QUARTER ALERT ----------------
                 previous_q = None
-
                 if "2nd quarter" in timer_lower:
                     previous_q = 0  # Q1
                 elif "3rd quarter" in timer_lower:
@@ -175,38 +165,55 @@ def main():
                 elif "overtime" in timer_lower:
                     previous_q = 3  # Q4
 
-                # Skip if in 1st quarter (no previous)
-                if previous_q is None:
-                    continue
+                if previous_q is not None and low_quarter_alerts_sent[match_key] < MAX_LOW_QUARTER_ALERTS:
+                    try:
+                        t1_q = int(team1["quarters"][previous_q]) if team1["quarters"][previous_q].isdigit() else 0
+                        t2_q = int(team2["quarters"][previous_q]) if team2["quarters"][previous_q].isdigit() else 0
+                    except:
+                        t1_q = t2_q = 0
 
-                # ------------------------------------------------
-                #   PER-GAME LOW QUARTER LIMIT CHECK
-                # ------------------------------------------------
-                if low_quarter_alerts_sent[match_key] >= MAX_LOW_QUARTER_ALERTS:
-                    logger.info(f"{match_key}: low-quarter limit reached.")
-                    continue
+                    if t1_q < 12 or t2_q < 12:
+                        msg = (
+                            f"⚠️ Low Quarter Alert\n"
+                            f"{match}\n"
+                            f"{timer}\n"
+                            f"Previous Quarter ({previous_q+1}): T1={t1_q}, T2={t2_q}"
+                        )
+                        send_telegram_message(msg)
+                        low_quarter_alerts_sent[match_key] += 1
+                        logger.info(f"{match_key} -> Alert {low_quarter_alerts_sent[match_key]}/{MAX_LOW_QUARTER_ALERTS}")
 
-                # Get previous quarter scores safely
-                try:
-                    t1_q = int(team1["quarters"][previous_q]) if team1["quarters"][previous_q].isdigit() else 0
-                    t2_q = int(team2["quarters"][previous_q]) if team2["quarters"][previous_q].isdigit() else 0
-                except:
-                    continue
+                # ---------------- SLOW-START / 2Q ESTIMATION ----------------
+                first_quarter_sum = sum(
+                    int(q) for q in team1.get('quarters', ['0'])[:1] + team2.get('quarters', ['0'])[:1] if q.isdigit()
+                )
 
-                # ------------------------------------------------
-                #        LOW-SCORE DETECTION (previous quarter)
-                # ------------------------------------------------
-                if t1_q < 12 or t2_q < 12:
-                    msg = (
-                        f"⚠️ Low Quarter Alert\n"
-                        f"{match}\n"
-                        f"{timer}\n"
-                        f"Previous Quarter ({previous_q+1}): T1={t1_q}, T2={t2_q}"
+                time_patterns = ["12:5", "13:0", "13:1", "16:5", "17:" , "07:" , "06:" ]
+                has_time_pattern = any(x in timer for x in time_patterns)
+                has_2nd = "2nd quarter" in timer_lower
+
+                if first_quarter_sum < 50 and has_2nd and has_time_pattern:
+                    second_quarter_sum = sum(
+                        int(q) for q in team1.get('quarters', ['0'])[1:2] + team2.get('quarters', ['0'])[1:2] if q.isdigit()
                     )
-                    send_telegram_message(msg)
+                    estimated_2q_points = second_quarter_sum * 3
+                    logger.info(f"{match} - First Team Total: {team1.get('total_score', 'No data')}, Quarters: {', '.join(team1.get('quarters', ['No data']))}")
+                    logger.info(f"Second Team Total: {team2.get('total_score', 'No data')}, Quarters: {', '.join(team2.get('quarters', ['No data']))}")
+                    logger.info(f"{timer}")
+                    logger.info(f"Estimated midpoint pts: {second_quarter_sum}")
+                    logger.info(f"Estimated 2Q pts: {estimated_2q_points}")
+                    logger.info("-" * 40)
 
-                    low_quarter_alerts_sent[match_key] += 1
-                    logger.info(f"{match_key} -> Alert {low_quarter_alerts_sent[match_key]}/4")
+                    message = f"{match} | 2Q pts: OV{estimated_2q_points}"
+                    send_telegram_message(message)
+                else:
+                    # Log details to see which check failed
+                    logger.debug(
+                        "SKIP DEBUG | match=%s | Q1sum=%s | timer=%s | has_2nd=%s | has_time_pattern=%s | t1_qs=%s | t2_qs=%s",
+                        match, first_quarter_sum, timer, has_2nd, has_time_pattern,
+                        team1.get('quarters'), team2.get('quarters')
+                    )
+         
 
         time.sleep(10)
 
