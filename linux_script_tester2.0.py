@@ -233,7 +233,7 @@ def main():
                     estimated_2q_points = second_quarter_sum * 3
                     send_telegram_message(f"{match} | 2Q pts: OV{estimated_2q_points}")
 
-        time.sleep(10)
+        time.sleep(15)
 
 # -------------------------------------------
 # Entrypoint
