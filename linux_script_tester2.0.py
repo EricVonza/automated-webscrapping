@@ -211,7 +211,7 @@ def main():
                     if t1_q < 12 or t2_q < 12:
                         send_telegram_message(
                             f"⚠️ Low Quarter Alert\n{match}\n{timer}\n"
-                            f"Previous Q{previous_q + 1}: T1={t1_q}, T2={t2_q}"
+                            f"Previous Q{previous_q + 1}: T1 {t1_q} vs T2 {t2_q}"
                         )
                         low_quarter_alerts_sent[match_key] += 1
 
