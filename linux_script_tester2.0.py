@@ -218,12 +218,15 @@ def main():
                 # -------- 2Q ESTIMATION --------
                 first_quarter_sum = sum(
                     int(q) for q in team1.get('quarters', ['0'])[:1] +
-                    team2.get('quarters', ['0'])[:1] if q.isdigit()
-                )
+                        team2.get('quarters', ['0'])[:1] if q.isdigit()
+                    )
 
-                time_patterns = ["12:5", "13:0", "13:1", "16:5", "17:", "07:", "06:"]
+                time_patterns = ["12:5", "13:0", "13:1", "16:5", "17:", "07:", "06:" , "22:5", "23:"]
                 has_time_pattern = any(x in timer for x in time_patterns)
                 has_2nd = "2nd quarter" in timer_lower
+                has_3rd = "3rd quarter" in timer_lower
+
+                second_quarter_sum = 0  # ensure available for 3Q logic
 
                 if first_quarter_sum < 50 and has_2nd and has_time_pattern:
                     second_quarter_sum = sum(
@@ -231,7 +234,24 @@ def main():
                         team2.get('quarters', ['0'])[1:2] if q.isdigit()
                     )
                     estimated_2q_points = second_quarter_sum * 3
-                    send_telegram_message(f"{match} | 2Q pts: OV{estimated_2q_points}")
+                    
+                    if estimated_2q_points < 45:
+
+                        send_telegram_message(f"{match} | 2Q pts: OV{estimated_2q_points}")
+
+
+
+                # -------- 3Q ESTIMATION --------
+                if has_3rd and has_time_pattern and 0 < second_quarter_sum < 31:
+                    third_quarter_sum = sum(
+                        int(q) for q in team1.get('quarters', ['0'])[2:3] +
+                        team2.get('quarters', ['0'])[2:3] if q.isdigit()
+                    )
+
+                    estimated_3q_points = third_quarter_sum * 3
+
+                    if estimated_3q_points < 45:
+                        send_telegram_message(f"{match} | 3Q pts: OV{estimated_3q_points}")
 
         time.sleep(15)
 
