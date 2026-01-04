@@ -211,7 +211,7 @@ def main():
                     if t1_q < 12 or t2_q < 12:
                         send_telegram_message(
                             f"⚠️ Low Quarter Alert\n{match}\n{timer}\n"
-                            f"Previous Q{previous_q + 1}: T1 {t1_q} vs T2 {t2_q}"
+                            f"Previous Q{previous_q + 1}: T1 {t1_q} pts vs T2 {t2_q} pts"
                         )
                         low_quarter_alerts_sent[match_key] += 1
 
@@ -253,7 +253,7 @@ def main():
                     if estimated_3q_points < 45:
                         send_telegram_message(f"{match} | 3Q pts: OV{estimated_3q_points}")
 
-        time.sleep(15)
+        time.sleep(12.5)
 
 # -------------------------------------------
 # Entrypoint
