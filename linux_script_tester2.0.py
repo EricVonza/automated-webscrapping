@@ -241,9 +241,9 @@ def main():
                     except:
                         t1_q = t2_q = 0
 
-                    if t1_q < 12 or t2_q < 12:
+                    if t1_q < 13 or t2_q < 13:
                         send_telegram_message(
-                            f"⚠️ Low Quarter Alert\n{league}\n{match}\n{timer}\n"
+                            f"⚠️ Low Quarter Alert\nLeague : {league}\n{match}\n{timer}\n"
                             f"Previous Q{previous_q + 1}: T1 {t1_q} pts vs T2 {t2_q} pts"
                         )
                         low_quarter_alerts_sent[match_key] += 1
@@ -269,7 +269,7 @@ def main():
                     estimated_2q_points = second_quarter_sum * 3
                     
                     if estimated_2q_points < 45:
-                        send_telegram_message(f"{league} | {match} | 2Q pts: OV{estimated_2q_points}")
+                        send_telegram_message(f"League :{league} | {match} | 2Q pts: OV{estimated_2q_points}")
 
                 # -------- 3Q ESTIMATION --------
                 if has_3rd and has_time_pattern and 0 < second_quarter_sum < 31:
@@ -281,7 +281,7 @@ def main():
                     estimated_3q_points = third_quarter_sum * 3
 
                     if estimated_3q_points < 45:
-                        send_telegram_message(f"{league} | {match} | 3Q pts: OV{estimated_3q_points}")
+                        send_telegram_message(f"League :{league} | {match} | 3Q pts: OV{estimated_3q_points}")
 
         time.sleep(12.5)
 
