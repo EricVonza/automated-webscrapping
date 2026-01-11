@@ -66,7 +66,16 @@ def extract_matches(html_content):
     for match in matches:
         teams = match.find('span', class_='c-events__teams')
         if teams:
-            teams_text = teams.text.strip().replace("Including Overtime", "")
+            # collect visible text parts and ignore "Including Overtime"
+            team_names = [
+                s.strip() for s in teams.stripped_strings
+                if s.strip() and "Including Overtime" not in s
+            ]
+            # join the first two name parts with " vs " when available
+            if len(team_names) >= 2:
+                teams_text = " vs ".join(team_names[:2])
+            else:
+                teams_text = " ".join(team_names)
             teams_text = " ".join(teams_text.split())
             teams_list.append(teams_text)
 
@@ -141,6 +150,28 @@ def extract_timer(html_content):
     return timers
 
 # -------------------------------------------
+# Extract League Info (new)
+# -------------------------------------------
+def extract_leagues(html_content):
+    """
+    Return list of league names for each match, using the 'title' attribute
+    of elements with class 'c-events__liga' when available, otherwise text.
+    """
+    soup = BeautifulSoup(html_content, 'html.parser')
+    liga_elements = soup.find_all(class_='c-events__liga')
+    leagues = []
+    for el in liga_elements:
+        title = el.get('title')
+        if title and title.strip():
+            leagues.append(title.strip())
+        else:
+            text = el.get_text(separator=" ", strip=True)
+            leagues.append(text)
+    if not leagues:
+        leagues = ["No league info"]
+    return leagues
+
+# -------------------------------------------
 # Send Telegram Message
 # -------------------------------------------
 def send_telegram_message(message):
@@ -160,7 +191,7 @@ def send_telegram_message(message):
         logger.error(f"Telegram error: {e}")
 
 # -------------------------------------------
-# Main Logic
+# Main Logic (modified to include leagues)
 # -------------------------------------------
 def main():
     while True:
@@ -170,20 +201,22 @@ def main():
             matches = extract_matches(html_content)
             games = extract_scores_and_quarters(html_content)
             timers = extract_timer(html_content)
+            leagues = extract_leagues(html_content)                  # <- new
 
-            max_len = max(len(matches), len(games), len(timers))
+            max_len = max(len(matches), len(games), len(timers), len(leagues))  # <- include leagues
             matches += ["No match data"] * (max_len - len(matches))
             games += [({}, {})] * (max_len - len(games))
             timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
+            leagues += ["No league info"] * (max_len - len(leagues))  # <- pad leagues
 
-            # Filter out women's games
+            # Filter out women's games (keeps league too)
             filtered = [
-                (m, g, t)
-                for m, g, t in zip(matches, games, timers)
+                (m, g, t, l)
+                for m, g, t, l in zip(matches, games, timers, leagues)
                 if "women" not in m.lower()
             ]
 
-            for match, (team1, team2), timer in filtered:
+            for match, (team1, team2), timer, league in filtered:
                 timer_lower = timer.lower()
                 match_key = match
 
@@ -210,7 +243,7 @@ def main():
 
                     if t1_q < 12 or t2_q < 12:
                         send_telegram_message(
-                            f"⚠️ Low Quarter Alert\n{match}\n{timer}\n"
+                            f"⚠️ Low Quarter Alert\n{league}\n{match}\n{timer}\n"
                             f"Previous Q{previous_q + 1}: T1 {t1_q} pts vs T2 {t2_q} pts"
                         )
                         low_quarter_alerts_sent[match_key] += 1
@@ -236,10 +269,7 @@ def main():
                     estimated_2q_points = second_quarter_sum * 3
                     
                     if estimated_2q_points < 45:
-
-                        send_telegram_message(f"{match} | 2Q pts: OV{estimated_2q_points}")
-
-
+                        send_telegram_message(f"{league} | {match} | 2Q pts: OV{estimated_2q_points}")
 
                 # -------- 3Q ESTIMATION --------
                 if has_3rd and has_time_pattern and 0 < second_quarter_sum < 31:
@@ -251,7 +281,7 @@ def main():
                     estimated_3q_points = third_quarter_sum * 3
 
                     if estimated_3q_points < 45:
-                        send_telegram_message(f"{match} | 3Q pts: OV{estimated_3q_points}")
+                        send_telegram_message(f"{league} | {match} | 3Q pts: OV{estimated_3q_points}")
 
         time.sleep(12.5)
 
