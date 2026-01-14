@@ -66,12 +66,10 @@ def extract_matches(html_content):
     for match in matches:
         teams = match.find('span', class_='c-events__teams')
         if teams:
-            # collect visible text parts and ignore "Including Overtime"
             team_names = [
                 s.strip() for s in teams.stripped_strings
                 if s.strip() and "Including Overtime" not in s
             ]
-            # join the first two name parts with " vs " when available
             if len(team_names) >= 2:
                 teams_text = " vs ".join(team_names[:2])
             else:
@@ -150,26 +148,39 @@ def extract_timer(html_content):
     return timers
 
 # -------------------------------------------
-# Extract League Info (new)
+# 🔥 FIXED LEAGUE EXTRACTOR (Bullet-proof)
 # -------------------------------------------
 def extract_leagues(html_content):
     """
-    Return list of league names for each match, using the 'title' attribute
-    of elements with class 'c-events__liga' when available, otherwise text.
+    Extract leagues in correct order aligned with matches.
+    Works with 1xbet's real DOM structure.
     """
     soup = BeautifulSoup(html_content, 'html.parser')
-    liga_elements = soup.find_all(class_='c-events__liga')
-    leagues = []
-    for el in liga_elements:
-        title = el.get('title')
-        if title and title.strip():
-            leagues.append(title.strip())
-        else:
-            text = el.get_text(separator=" ", strip=True)
-            leagues.append(text)
-    if not leagues:
-        leagues = ["No league info"]
-    return leagues
+
+    container = soup.find("div", class_="c-events")
+    if not container:
+        return ["No league info"]
+
+    leagues_expanded = []
+    current_league = "No league info"
+
+    # iterate through direct children in order
+    for el in container.find_all(recursive=False):
+
+        # league header
+        if el.has_attr("class") and "c-events__liga" in el["class"]:
+            title = el.get("title") or el.get_text(strip=True)
+            current_league = title.strip() if title else "No league info"
+            continue
+
+        # match row
+        if el.find(class_="c-events__teams"):
+            leagues_expanded.append(current_league)
+
+    if not leagues_expanded:
+        leagues_expanded = ["No league info"]
+
+    return leagues_expanded
 
 # -------------------------------------------
 # Send Telegram Message
@@ -191,7 +202,7 @@ def send_telegram_message(message):
         logger.error(f"Telegram error: {e}")
 
 # -------------------------------------------
-# Main Logic (modified to include leagues)
+# Main Logic (with leagues)
 # -------------------------------------------
 def main():
     while True:
@@ -201,15 +212,14 @@ def main():
             matches = extract_matches(html_content)
             games = extract_scores_and_quarters(html_content)
             timers = extract_timer(html_content)
-            leagues = extract_leagues(html_content)                  # <- new
+            leagues = extract_leagues(html_content)
 
-            max_len = max(len(matches), len(games), len(timers), len(leagues))  # <- include leagues
+            max_len = max(len(matches), len(games), len(timers), len(leagues))
             matches += ["No match data"] * (max_len - len(matches))
             games += [({}, {})] * (max_len - len(games))
             timers += ["Timer: No timer info | Quarter: No quarter info"] * (max_len - len(timers))
-            leagues += ["No league info"] * (max_len - len(leagues))  # <- pad leagues
+            leagues += ["No league info"] * (max_len - len(leagues))
 
-            # Filter out women's games (keeps league too)
             filtered = [
                 (m, g, t, l)
                 for m, g, t, l in zip(matches, games, timers, leagues)
@@ -223,7 +233,7 @@ def main():
                 if match_key not in low_quarter_alerts_sent:
                     low_quarter_alerts_sent[match_key] = 0
 
-                # -------- LOW QUARTER ALERT --------
+                # LOW QUARTER ALERT
                 previous_q = None
                 if "2nd quarter" in timer_lower:
                     previous_q = 0
@@ -241,25 +251,25 @@ def main():
                     except:
                         t1_q = t2_q = 0
 
-                    if t1_q < 13 or t2_q < 13:
+                    if t1_q < 12 or t2_q < 12:
                         send_telegram_message(
                             f"⚠️ Low Quarter Alert\nLeague : {league}\n{match}\n{timer}\n"
                             f"Previous Q{previous_q + 1}: T1 {t1_q} pts vs T2 {t2_q} pts"
                         )
                         low_quarter_alerts_sent[match_key] += 1
 
-                # -------- 2Q ESTIMATION --------
+                # 2Q ESTIMATION
                 first_quarter_sum = sum(
                     int(q) for q in team1.get('quarters', ['0'])[:1] +
                         team2.get('quarters', ['0'])[:1] if q.isdigit()
-                    )
+                )
 
-                time_patterns = ["12:5", "13:0", "13:1", "16:5", "17:", "07:", "06:" , "22:5", "23:"]
+                time_patterns = ["12:5", "13:0", "13:1", "16:5", "17:", "07:", "06:", "22:5", "23:"]
                 has_time_pattern = any(x in timer for x in time_patterns)
                 has_2nd = "2nd quarter" in timer_lower
                 has_3rd = "3rd quarter" in timer_lower
 
-                second_quarter_sum = 0  # ensure available for 3Q logic
+                second_quarter_sum = 0
 
                 if first_quarter_sum < 50 and has_2nd and has_time_pattern:
                     second_quarter_sum = sum(
@@ -267,11 +277,11 @@ def main():
                         team2.get('quarters', ['0'])[1:2] if q.isdigit()
                     )
                     estimated_2q_points = second_quarter_sum * 3
-                    
+
                     if estimated_2q_points < 45:
                         send_telegram_message(f"League :{league} | {match} | 2Q pts: OV{estimated_2q_points}")
 
-                # -------- 3Q ESTIMATION --------
+                # 3Q ESTIMATION
                 if has_3rd and has_time_pattern and 0 < second_quarter_sum < 31:
                     third_quarter_sum = sum(
                         int(q) for q in team1.get('quarters', ['0'])[2:3] +
